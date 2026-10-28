@@ -1,0 +1,51 @@
+# Template da aula 20261028 — Deployment.
+# Uso:
+#   cp templates/20261028-deployment.yaml /tmp/deployment.yaml
+#   sed "s/nome/$ALUNO/g" /tmp/deployment.yaml > /tmp/$ALUNO-deployment.yaml
+#   kubectl apply -f /tmp/$ALUNO-deployment.yaml
+
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: deploy-nome
+  labels:
+    app: app-nome
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: app-nome
+  template:
+    metadata:
+      labels:
+        app: app-nome
+    spec:
+      containers:
+        - name: nginx-container
+          image: nginx:latest
+          ports:
+            - containerPort: 80
+          env:
+            - name: POD_NAME
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.name
+            - name: POD_IP
+              valueFrom:
+                fieldRef:
+                  fieldPath: status.podIP
+          command: ["/bin/sh", "-c"]
+          args:
+            - |
+              mkdir -p /usr/share/nginx/html/nome
+              cat > /usr/share/nginx/html/nome/index.html <<FIM
+              <html>
+              <head><meta http-equiv="refresh" content="2"><title>nome</title></head>
+              <body style="font-family:sans-serif;text-align:center;margin-top:15%">
+              <h1>nome</h1>
+              <h2>Pod: $POD_NAME</h2>
+              <p>IP: $POD_IP</p>
+              </body>
+              </html>
+              FIM
+              exec nginx -g 'daemon off;'
