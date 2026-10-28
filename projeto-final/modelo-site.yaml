@@ -1,0 +1,235 @@
+# ============================================================
+# PROJETO FINAL — MEU SITE NO AR
+#
+# Modelo incompleto: complete os TODOs, troque alunoXX pelo seu
+# número e escreva o conteúdo da sua página.
+#
+# Uso:
+#   export ALUNO=aluno07
+#   sed "s/alunoXX/$ALUNO/g" modelo-site.yaml > site-$ALUNO.yaml
+#   nano site-$ALUNO.yaml
+#   kubectl apply -f site-$ALUNO.yaml
+#
+# O arquivo tem 4 blocos obrigatórios:
+#   1. ConfigMap  -> guarda o HTML
+#   2. Deployment -> roda 2 Pods nginx
+#   3. Service    -> endereço fixo dentro do cluster
+#   4. Ingress    -> publica a página em /alunoXX
+#
+# O desafio extra com PVC está na aula 20261118.md.
+# ============================================================
+
+# ============================================================
+# BLOCO 1 — ConfigMap: o conteúdo da sua página.
+#
+# O ConfigMap guarda o arquivo index.html. O Deployment monta
+# esse arquivo dentro do nginx, em /usr/share/nginx/html/alunoXX.
+# Assim, a página nasce junto com o YAML: não é preciso entrar
+# no Pod para criar o HTML.
+#
+# TODO: troque SEU NOME, SUA FRASE e os comentários do HTML.
+# TODO: personalize as cores no bloco <style>.
+# ============================================================
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: site-alunoXX
+  labels:
+    app: app-alunoXX
+data:
+  index.html: |
+    <!DOCTYPE html>
+    <html lang="pt-BR">
+    <head>
+      <meta charset="UTF-8">
+      <meta name="viewport" content="width=device-width, initial-scale=1.0">
+      <title>alunoXX — Minha Jornada DevOps</title>
+      <style>
+        /* TODO: personalize as cores, fontes e espaçamentos.
+           Dica: mantenha um fundo escuro e um cartão central. */
+        :root {
+          --fundo: #0f172a;
+          --cartao: #1e293b;
+          --borda: #334155;
+          --texto: #e2e8f0;
+          --destaque: #38bdf8;
+        }
+        * { box-sizing: border-box; }
+        body {
+          margin: 0;
+          min-height: 100vh;
+          padding: 24px;
+          display: grid;
+          place-items: center;
+          font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
+          background: var(--fundo);
+          color: var(--texto);
+        }
+        .cartao {
+          width: min(760px, 100%);
+          padding: 32px;
+          background: var(--cartao);
+          border: 1px solid var(--borda);
+          border-radius: 20px;
+          box-shadow: 0 20px 60px rgba(0, 0, 0, .35);
+        }
+        h1 { margin: 0 0 8px; color: var(--destaque); }
+        h2 {
+          margin-top: 28px;
+          padding-bottom: 8px;
+          border-bottom: 1px solid var(--borda);
+        }
+        .frase { font-size: 1.1rem; opacity: .85; }
+        ul { line-height: 1.8; }
+        code {
+          padding: 2px 6px;
+          border-radius: 6px;
+          background: #0b1220;
+          color: #7dd3fc;
+        }
+        footer {
+          margin-top: 32px;
+          text-align: center;
+          font-size: .85rem;
+          opacity: .6;
+        }
+      </style>
+    </head>
+    <body>
+      <main class="cartao">
+        <header>
+          <h1>SEU NOME</h1>
+          <p class="frase">SUA FRASE EM UMA LINHA</p>
+        </header>
+
+        <section>
+          <h2>Minha jornada DevOps</h2>
+          <ul>
+            <li><strong>Primeiro contato:</strong> <!-- TODO: como começou? --></li>
+            <li><strong>Primeiro container:</strong> <!-- TODO: qual imagem/comando? --></li>
+            <li><strong>Primeiro deploy:</strong> <!-- TODO: o que você publicou? --></li>
+          </ul>
+        </section>
+
+        <section>
+          <h2>3 coisas que eu aprendi</h2>
+          <ul>
+            <li><code><!-- TODO: comando/conceito --></code> — <!-- TODO: explicação curta --></li>
+            <li><code><!-- TODO: comando/conceito --></code> — <!-- TODO: explicação curta --></li>
+            <li><code><!-- TODO: comando/conceito --></code> — <!-- TODO: explicação curta --></li>
+          </ul>
+        </section>
+
+        <section>
+          <h2>Recado para a turma</h2>
+          <p><!-- TODO: uma frase, um conselho ou um agradecimento. --></p>
+        </section>
+
+        <footer>
+          Deploy por alunoXX em <!-- TODO: DD/MM/AAAA --> · Kubernetes + nginx
+        </footer>
+      </main>
+    </body>
+    </html>
+
+---
+# ============================================================
+# BLOCO 2 — Deployment: mantém 2 Pods nginx rodando.
+#
+# - replicas: 2        -> duas cópias da página, com balanceamento.
+# - selector/labels    -> o Service encontra os Pods por estas labels.
+# - volumeMounts       -> monta o ConfigMap dentro do nginx.
+# - volumes            -> declara de onde vem o volume "site".
+#
+# Se um Pod cair, o Deployment cria outro automaticamente.
+# TODO: confira se as labels do selector e do template são iguais.
+# ============================================================
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: deploy-alunoXX
+  labels:
+    app: app-alunoXX
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: app-alunoXX
+  template:
+    metadata:
+      labels:
+        app: app-alunoXX
+    spec:
+      containers:
+        - name: nginx
+          image: nginx:latest
+          ports:
+            - containerPort: 80
+          volumeMounts:
+            - name: site
+              mountPath: /usr/share/nginx/html/alunoXX
+      volumes:
+        - name: site
+          configMap:
+            name: site-alunoXX
+
+---
+# ============================================================
+# BLOCO 3 — Service: o endereço estável da aplicação.
+#
+# O Ingress não fala com o Pod: ele fala com o Service.
+# O Service seleciona os Pods pela label app=app-alunoXX e
+# balanceia as conexões entre eles.
+#
+# - type: ClusterIP    -> acesso interno (o Ingress usa).
+# - port: 80           -> porta do Service.
+# - targetPort: 80     -> porta em que o nginx escuta no Pod.
+# TODO: o selector precisa ser igual à label dos Pods.
+# ============================================================
+apiVersion: v1
+kind: Service
+metadata:
+  name: svc-alunoXX
+  labels:
+    app: app-alunoXX
+spec:
+  type: ClusterIP
+  selector:
+    app: app-alunoXX
+  ports:
+    - name: http
+      protocol: TCP
+      port: 80
+      targetPort: 80
+
+---
+# ============================================================
+# BLOCO 4 — Ingress: publica a página no caminho /alunoXX.
+#
+# O Ingress Controller lê esta regra e encaminha:
+#   https://curso.chr.eti.br/alunoXX/ -> svc-alunoXX:80
+#
+# - ingressClassName: use a classe do seu cluster (public ou nginx).
+# - host: curso.chr.eti.br (o mesmo do proxy reverso do professor).
+# - path: /alunoXX (o mesmo nome da pasta dentro do nginx).
+#
+# TODO: confira a classe com: kubectl get ingressclass
+# TODO: se a classe for nginx, troque public por nginx.
+# ============================================================
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: ingress-alunoXX
+spec:
+  ingressClassName: public
+  rules:
+    - host: curso.chr.eti.br
+      http:
+        paths:
+          - path: /alunoXX
+            pathType: Prefix
+            backend:
+              service:
+                name: svc-alunoXX
+                port:
+                  number: 80
